@@ -1,0 +1,4 @@
+nltk==3.8.1
+pandas==2.2.2
+streamlit==1.39.0
+watchdog==5.0.3
