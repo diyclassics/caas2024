@@ -16,24 +16,25 @@ st.markdown(
     """
 )
 
-
 # Checkbox for lemma vs token
 use_lemma = st.checkbox("Use Lemma", value=False)
 
 # Set the directory based on the checkbox state
 data_dir = "data/bigrams/lemma" if use_lemma else "data/bigrams/token"
 
-# Load all pickle files that have 'de_domo_sua' in the name
-pickle_files = glob.glob(f"{data_dir}/*.p")
+# Load all pickle files and sort them
+pickle_files = sorted(glob.glob(os.path.join(data_dir, "*.p")))
 
-# Extract base names for display in the dropdown and remove .tess_bigrams
-file_names = [
-    os.path.splitext(os.path.basename(file))[0].replace(".tess_bigrams", "")
-    for file in pickle_files
-]
+# Extract file names from paths
+file_names = [os.path.basename(f) for f in pickle_files]
 
-# File selection
-file_choice = st.selectbox("Select a file", file_names)
+# Ensure default option is "cicero.brutus.p" if it exists
+default_index = (
+    file_names.index("cicero.brutus.p") if "cicero.brutus.p" in file_names else 0
+)
+
+# File selection with default option
+file_choice = st.selectbox("Select a file", file_names, index=default_index)
 
 # Map the selected file name back to the full file path
 file_path = pickle_files[file_names.index(file_choice)]
@@ -64,45 +65,23 @@ else:
 
     # Calculate scores based on the selected metric
     if metric_choice == "Chi-squared":
-        scores = [
-            (bigram, round(score, 2))
-            for bigram, score in bigramFinder.score_ngrams(bigram_measures.chi_sq)
-        ]
+        scored_bigrams = bigramFinder.score_ngrams(bigram_measures.chi_sq)
     elif metric_choice == "PMI":
-        scores = [
-            (bigram, round(score, 2))
-            for bigram, score in bigramFinder.score_ngrams(bigram_measures.pmi)
-        ]
+        scored_bigrams = bigramFinder.score_ngrams(bigram_measures.pmi)
     elif metric_choice == "Likelihood Ratio":
-        scores = [
-            (bigram, round(score, 2))
-            for bigram, score in bigramFinder.score_ngrams(
-                bigram_measures.likelihood_ratio
-            )
-        ]
+        scored_bigrams = bigramFinder.score_ngrams(bigram_measures.likelihood_ratio)
 
-    # Sort the bigrams by their scores in descending order
-    ranked_bigrams = sorted(scores, key=lambda x: x[1], reverse=True)
+    # Convert scored bigrams to DataFrame
+    top_bigrams_df = pd.DataFrame(scored_bigrams, columns=["Bigram", "Measure"])
 
-    # Select the top 25 bigrams or fewer if less than 25 are available
-    top_bigrams = ranked_bigrams[:25]
-
-    # Create a DataFrame for the top bigrams
-    top_bigrams_df = pd.DataFrame(top_bigrams, columns=["bigram", metric_choice])
-
-    # Add frequency column
-    top_bigrams_df["Frequency"] = top_bigrams_df["bigram"].apply(
+    # Add Rank and Frequency columns
+    top_bigrams_df["Rank"] = top_bigrams_df.index + 1
+    top_bigrams_df["Frequency"] = top_bigrams_df["Bigram"].apply(
         lambda x: bigramFinder.ngram_fd[x]
     )
 
-    # Convert bigrams to strings
-    top_bigrams_df["bigram"] = top_bigrams_df["bigram"].apply(
-        lambda x: f"({x[0]}, {x[1]})"
-    )
+    # Reorder columns
+    top_bigrams_df = top_bigrams_df[["Rank", "Bigram", "Measure", "Frequency"]]
 
-    # Reorder columns to have Rank, Bigram, Metric, Frequency
-    top_bigrams_df.insert(0, "Rank", range(1, len(top_bigrams_df) + 1))
-
-    # Display DataFrame
-    st.write(f"Top {len(top_bigrams_df)} bigrams by {metric_choice} in {file_choice}:")
-    st.dataframe(top_bigrams_df, use_container_width=True, hide_index=True)
+    # Display the DataFrame
+    st.dataframe(top_bigrams_df, use_container_width=True)
