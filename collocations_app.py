@@ -84,4 +84,4 @@ else:
     top_bigrams_df = top_bigrams_df[["Rank", "Bigram", "Measure", "Frequency"]]
 
     # Display the DataFrame
-    st.dataframe(top_bigrams_df, use_container_width=True)
+    st.dataframe(top_bigrams_df, use_container_width=True, hide_index=True)
